@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive WMS | Gemba Concepts</title>
+<meta name="description" content="Run one order through a warehouse on the Gemba WMS: gate in, receive, put away, pick and dispatch.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Gemba brand tokens - shared with gemba-wms-kenya.html */
+:root{
+  --cream:#f8f6f0;
+  --cream-deep:#f4f1ea;
+  --ink:#0a0c0b;
+  --ink-soft:#2c302d;
+  --muted:#5f6562;
+  --muted-light:#8a918d;
+  --green:#1f4e2d;
+  --green-deep:#112a18;
+  --green-mid:#2a6b35;
+  --green-wash:rgba(31,78,45,.07);
+  --green-edge:rgba(31,78,45,.18);
+  --amber:#a86a12;
+  --amber-wash:rgba(168,106,18,.10);
+  --danger:#9b2c2c;
+  --danger-wash:rgba(155,44,44,.08);
+  --line:rgba(10,12,11,.10);
+  --line-soft:rgba(10,12,11,.06);
+  --label:#f2d34b;
+  --wood:#c4955a;
+  --font-sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.15;text-wrap:balance}
+p{margin:0;text-wrap:pretty}
+ul,ol,dl{margin:0;padding:0;list-style:none}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:4px}
+
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+.eyebrow::before{content:"";width:18px;height:1px;background:currentColor;opacity:.55}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 22px;border:0;border-radius:6px;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:background .16s ease,border-color .16s ease}
+.btn-primary{background:var(--green);color:#fff}
+.btn-primary:hover{background:var(--green-deep)}
+.btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--green);color:var(--green)}
+
+/* ---------------- top bar ---------------- */
+.bar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:16px;height:60px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(248,246,240,.92);backdrop-filter:blur(10px)}
+.wordmark{display:flex;align-items:baseline;gap:8px;text-decoration:none;flex-shrink:0}
+.wordmark b{font-size:19px;letter-spacing:-.04em;color:var(--green)}
+.wordmark span{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.rail{flex:1;display:flex;justify-content:center;gap:6px;min-width:0}
+.rail li{display:flex;align-items:center;gap:7px;padding:4px 11px 4px 4px;border-radius:999px;font-size:12px;font-weight:600;color:var(--muted-light);white-space:nowrap}
+.rail .dot{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;border:1.5px solid currentColor;font-size:11px}
+.rail li.now{color:var(--ink);background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+.rail li.now .dot{background:var(--green);border-color:var(--green);color:#fff}
+.rail li.done{color:var(--green)}
+.rail li.done .dot{background:var(--green-wash);border-color:var(--green-edge)}
+.bar-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.chip{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--danger-wash);color:#7a2424;font-size:12px;font-weight:500}
+.chip b{font-variant-numeric:tabular-nums}
+.clock{padding:5px 10px;border-radius:8px;background:#fff;box-shadow:inset 0 0 0 1px var(--line);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.link-btn{padding:6px;border:0;background:none;font-size:13px;font-weight:600;color:var(--green);cursor:pointer}
+
+/* ---------------- page ---------------- */
+.sim{max-width:1320px;margin:0 auto;padding:20px}
+.brief{margin-bottom:20px;padding:18px 22px;border:1px solid var(--line);border-radius:16px;background:#fff;transition:background .3s ease,border-color .3s ease}
+.brief h1{margin-top:8px;font-size:24px}
+.brief .brief-text{margin-top:8px;max-width:80ch;font-size:15px;line-height:1.6;color:var(--muted)}
+.brief.done{background:var(--green-wash);border-color:var(--green-edge)}
+.brief.done .brief-text{color:var(--ink-soft)}
+.stage-grid{display:grid;gap:20px}
+.device-cap{margin-top:12px;text-align:center;font-size:12px;color:var(--muted-light)}
+
+/* ---------------- handheld ---------------- */
+.device{width:100%;max-width:360px;margin:0 auto;padding:10px;border-radius:36px;background:#141816;box-shadow:0 30px 60px -30px rgba(10,12,11,.55),inset 0 0 0 1px rgba(255,255,255,.06)}
+.device.shake{animation:shake .34s ease}
+@keyframes shake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+.device-screen{display:flex;flex-direction:column;min-height:610px;overflow:hidden;border-radius:27px;background:#fff}
+.dev-status{display:flex;justify-content:space-between;padding:10px 22px 6px;font-size:11px;font-weight:600;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.dev-app{display:flex;align-items:baseline;justify-content:space-between;padding:12px 18px;background:var(--green);color:#fff}
+.dev-app b{font-size:14px;letter-spacing:-.01em}
+.dev-app span{font-size:11px;opacity:.75}
+.screen{flex:1;display:flex;flex-direction:column;gap:14px;padding:18px}
+.screen.is-busy{pointer-events:none}
+.s-kicker{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
+.s-title{margin-top:-9px;font-size:20px;line-height:1.2}
+.s-title:focus{outline:none}
+.s-note{font-size:13px;line-height:1.5;color:var(--muted)}
+.s-kv{padding:2px 14px;border:1px solid var(--line);border-radius:12px;background:var(--cream)}
+.s-kv div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+.s-kv div:last-child{border-bottom:0}
+.s-kv dt{color:var(--muted);flex-shrink:0}
+.s-kv dd{margin:0;font-weight:600;text-align:right}
+.loc{display:inline-block;padding:2px 8px;border-radius:5px;background:var(--label);color:#1b1b1b;font-weight:700;letter-spacing:.04em}
+.pill{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.pill.ok{background:var(--green-wash);color:var(--green)}
+
+.s-btn{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:52px;margin-top:auto;padding:0 18px;border:0;border-radius:12px;background:var(--green);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:background .16s ease}
+.s-btn:hover{background:var(--green-deep)}
+.s-btn[disabled]{background:#c9cec9;cursor:not-allowed}
+.s-btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.s-btn.ghost:hover{border-color:var(--danger);color:var(--danger)}
+.ico{width:20px;height:20px;flex-shrink:0}
+.scanning::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:#ff4d4d;box-shadow:0 0 10px 2px rgba(255,77,77,.7);animation:laser .5s ease-in-out forwards}
+@keyframes laser{to{top:100%}}
+
+.s-checks{display:flex;flex-direction:column;gap:8px}
+.s-check{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;text-align:left;color:var(--ink);cursor:pointer}
+.s-check .box{display:grid;place-items:center;flex-shrink:0;width:20px;height:20px;border:1.5px solid var(--muted-light);border-radius:6px}
+.s-check.on{border-color:var(--green-edge);background:var(--green-wash)}
+.s-check.on .box{background:var(--green);border-color:var(--green)}
+.s-check.on .box::after{content:"\2713";color:#fff;font-size:13px;font-weight:700}
+
+.s-choices{display:flex;flex-direction:column;gap:8px}
+.s-choice{position:relative;overflow:hidden;display:block;width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;text-align:left;color:var(--ink);cursor:pointer;transition:border-color .16s ease}
+.s-choice:hover{border-color:var(--green)}
+.s-choice b{display:block;font-size:14.5px}
+.s-choice span{display:block;margin-top:2px;padding-right:70px;font-size:12.5px;color:var(--muted)}
+.s-choice em{position:absolute;top:12px;right:12px;padding:3px 7px;border-radius:999px;background:var(--green-wash);color:var(--green);font-style:normal;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+
+.s-labels{display:flex;flex-wrap:wrap;gap:8px}
+.s-tag{position:relative;overflow:hidden;flex:1;min-width:86px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:0;border-radius:8px;background:var(--label);color:#1b1b1b;font-size:15px;font-weight:700;letter-spacing:.04em;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.s-tag .ico{width:22px;height:22px;opacity:.65}
+
+.s-lines{display:flex;flex-direction:column;gap:8px}
+.s-line{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;transition:background .2s ease}
+.s-line-main{flex:1;min-width:0}
+.s-line-main b{display:block;font-size:14px}
+.s-line-main span{display:block;font-size:11.5px;color:var(--muted)}
+.s-line-qty{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.s-line.done{border-color:var(--green-edge);background:var(--green-wash)}
+.s-line.short{border-color:rgba(168,106,18,.32);background:var(--amber-wash)}
+.s-line-ok{display:grid;place-items:center;flex-shrink:0;width:24px;height:24px;border-radius:999px;background:var(--green);color:#fff;font-size:12px;font-weight:700}
+.s-line.short .s-line-ok{background:var(--amber)}
+.s-mini{position:relative;overflow:hidden;flex-shrink:0;padding:8px 14px;border:0;border-radius:8px;background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+
+.s-variance{padding:14px;border:1px solid rgba(168,106,18,.32);border-radius:12px;background:var(--amber-wash)}
+.s-variance b{color:#7a4c0b}
+.s-variance p{margin-top:4px;font-size:13px;color:var(--ink-soft)}
+.s-pair{display:grid;gap:8px;margin-top:12px}
+.s-pair .s-btn{min-height:46px;margin-top:0;font-size:14px}
+
+.s-alert{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.5}
+.s-alert b{display:block;font-size:13.5px}
+.s-alert.block{border:1px solid rgba(155,44,44,.25);background:var(--danger-wash);color:#5e1d1d}
+.s-alert.ok{border:1px solid var(--green-edge);background:var(--green-wash);color:var(--green-deep)}
+
+.s-auto li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+.s-auto li::before{content:"\2713";color:var(--green);font-weight:700}
+
+.s-stepper{display:grid;grid-template-columns:1fr 1.2fr 1fr 1fr;align-items:center;gap:8px}
+.s-stepper button{height:52px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:16px;font-weight:600;color:var(--ink);cursor:pointer}
+.s-stepper output{text-align:center;font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
+
+.s-done{display:flex;flex:1;flex-direction:column;align-items:flex-start;gap:12px}
+.s-tick{display:grid;place-items:center;width:52px;height:52px;margin-top:18px;border-radius:999px;background:var(--green);color:#fff;font-size:24px}
+.s-done .s-title{margin-top:0}
+.s-done-sub{font-size:13.5px;color:var(--muted)}
+
+/* ---------------- control tower ---------------- */
+.tower{min-width:0;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.tower-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-bottom:14px}
+.tower-head h2{font-size:17px}
+.tower-sub{font-size:12.5px;color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--green-wash);color:var(--green);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.live i{width:7px;height:7px;border-radius:999px;background:#2fa24c;animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.map-wrap{overflow-x:auto;border:1px solid var(--line-soft);border-radius:12px;background:var(--cream)}
+#map{display:block;width:100%;min-width:640px;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:11.5px;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px}
+.lg-ours{background:rgba(31,78,45,.16);box-shadow:inset 0 0 0 1px var(--green)}
+.lg-other{background:#efeee9;box-shadow:inset 0 0 0 1px rgba(10,12,11,.14)}
+.lg-free{background:#fff;box-shadow:inset 0 0 0 1px rgba(10,12,11,.14)}
+.lg-pallet{background:var(--wood)}
+.lg-target{background:#fff;box-shadow:inset 0 0 0 2px var(--green)}
+.tower-bottom{display:grid;gap:14px;margin-top:16px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.kpi{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--cream)}
+.kpi-l{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.kpi-v{margin-top:6px;font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi-v.text{font-size:15px;line-height:1.3}
+.kpi-s{margin-top:4px;font-size:11.5px;color:var(--muted)}
+.kpi.is-running .kpi-v{color:var(--green)}
+.log-box h3{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.log{max-height:236px;margin-top:8px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--cream)}
+.ev{display:grid;grid-template-columns:40px 52px 1fr;align-items:baseline;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line-soft);font-size:12.5px;line-height:1.4;animation:evin .6s ease}
+@keyframes evin{from{background:rgba(31,78,45,.14)}}
+.ev time{color:var(--muted-light);font-variant-numeric:tabular-nums}
+.ev .tag{justify-self:start;padding:1px 6px;border-radius:4px;background:#e7e5df;color:var(--ink-soft);font-size:9.5px;font-weight:700;letter-spacing:.06em}
+.ev.sap .tag{background:var(--green-wash);color:var(--green)}
+.ev.warn .tag{background:var(--amber-wash);color:#7a4c0b}
+.ev.block .tag{background:var(--danger-wash);color:#7a2424}
+.ev.block .txt{color:#7a2424}
+.fine{max-width:1320px;margin:0 auto;padding:4px 20px 28px;font-size:11.5px;color:var(--muted-light)}
+
+/* ---------------- floor plan (SVG) ---------------- */
+.yard{fill:#e9e6dd}
+.building{fill:#fdfcf9;stroke:rgba(10,12,11,.14);stroke-width:1.2}
+.lbl{font-family:var(--font-sans);font-size:9px;font-weight:600;letter-spacing:.08em;fill:var(--muted-light)}
+.lbl.strong{fill:var(--muted)}
+.zone{fill:none;stroke:rgba(10,12,11,.18);stroke-dasharray:4 4}
+.door{fill:var(--ink-soft);transition:fill .3s ease}
+.door.busy{fill:#b9bdb8}
+.door.rec{fill:var(--green)}
+.door.held{fill:var(--amber)}
+.door.used{fill:var(--green-mid)}
+.barrier{fill:var(--amber);transform-box:fill-box;transform-origin:0 50%;transition:transform .45s ease}
+.barrier.open{transform:rotate(-75deg)}
+.cell rect{fill:#fff;stroke:rgba(10,12,11,.14);transition:fill .3s ease,stroke .3s ease}
+.cell.other rect{fill:#efeee9}
+.cell.ours rect{fill:rgba(31,78,45,.12);stroke:var(--green)}
+.cell .c1{font-family:var(--font-sans);font-size:10px;font-weight:600;fill:var(--ink-soft)}
+.cell .c2{font-family:var(--font-sans);font-size:9.5px;font-weight:500;fill:var(--muted)}
+.cell.other .c1,.cell.other .c2{fill:var(--muted-light)}
+.cell.ours .c1{fill:var(--green-deep)}
+.cell .cid{font-family:var(--font-sans);font-size:8.5px;font-weight:600;fill:var(--muted-light);text-anchor:end}
+.cell.target rect{stroke:var(--green);stroke-width:2.5;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{stroke-opacity:.3}}
+.truck .cab{fill:#2c302d}
+.truck .cabwin{fill:#cfd8d2}
+.truck.ours .box{fill:var(--green)}
+.truck.ours2 .box{fill:var(--green-mid)}
+.truck.other .box{fill:#b9bdb8}
+.truck .plate{font-family:var(--font-sans);font-size:9px;font-weight:700;letter-spacing:.04em;fill:#fff;text-anchor:middle}
+.pallet rect{fill:var(--wood);stroke:#8c6232}
+.pallet text{font-family:var(--font-sans);font-size:9px;font-weight:700;fill:#fff;text-anchor:middle}
+.mv{transition:transform .9s cubic-bezier(.45,.05,.2,1),opacity .35s ease}
+.mv.instant{transition:none}
+
+/* ---------------- overlays ---------------- */
+.overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;overflow-y:auto;background:rgba(17,42,24,.5);backdrop-filter:blur(5px)}
+.overlay[hidden]{display:none}
+.ov-card{width:100%;max-width:560px;padding:30px;border-radius:20px;background:var(--cream);box-shadow:0 40px 80px -40px rgba(0,0,0,.6)}
+.ov-card.wide{max-width:780px}
+.ov-card h2{margin-top:10px;font-size:26px}
+.ov-card h2:focus{outline:none}
+.ov-p{margin-top:12px;font-size:15px;line-height:1.6;color:var(--muted)}
+.ov-small{margin-top:14px;font-size:12.5px;color:var(--muted)}
+.ov-card > .btn{margin-top:22px}
+.intro-steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px;counter-reset:s}
+.intro-steps li{counter-increment:s;padding:6px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12.5px;font-weight:600}
+.intro-steps li::before{content:counter(s) "\00a0\00a0";color:var(--green)}
+.intro-facts{display:flex;gap:28px;margin-top:18px}
+.intro-facts dt{font-size:26px;font-weight:600;letter-spacing:-.03em}
+.intro-facts dd{margin:0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.results{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.results li{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:13.5px;line-height:1.45;color:var(--muted)}
+.results b{display:block;margin-bottom:2px;font-size:22px;letter-spacing:-.02em;color:var(--ink)}
+.results li.hl{border-color:var(--green-edge);background:var(--green-wash)}
+.look{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.look h3{font-size:15px}
+.look li{position:relative;margin-top:8px;padding-left:18px;font-size:14px;line-height:1.5;color:var(--ink-soft)}
+.look li::before{content:"";position:absolute;left:0;top:10px;width:8px;height:2px;background:var(--green)}
+.ov-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+
+/* ---------------- breakpoints ---------------- */
+@media (min-width:640px){
+  .results{grid-template-columns:repeat(3,1fr)}
+}
+@media (min-width:960px){
+  .stage-grid{grid-template-columns:360px minmax(0,1fr);align-items:start}
+  .device-col{position:sticky;top:80px}
+}
+@media (min-width:1180px){
+  .tower-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+}
+@media (max-width:820px){
+  .rail .lbl,.wordmark span{display:none}
+  .rail li{padding:3px}
+}
+@media (max-width:520px){
+  .bar{gap:10px;padding:0 12px}
+  .rail{gap:2px}
+  .rail .dot{width:20px;height:20px}
+  .sim{padding:12px}
+  .brief{padding:14px 16px}
+  .brief h1{font-size:20px}
+  .device{padding:6px;border-radius:26px}
+  .device-screen{min-height:540px;border-radius:21px}
+  .tower{padding:14px}
+  .ov-card{padding:22px}
+  .ov-card h2{font-size:22px}
+}
+@media (max-width:560px){
+  /* The count still appears on the results screen. */
+  .chip{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="bar">
+    <a class="wordmark" href="gemba-wms-kenya.html" aria-label="Gemba Concepts, back to the Kenya page"><b>gemba</b><span>WMS simulator</span></a>
+    <ol class="rail" id="rail" aria-label="Stages"></ol>
+    <div class="bar-right">
+      <span class="chip" title="Wrong moves the system refused"><span class="chip-k">Errors stopped</span><b id="caught">0</b></span>
+      <span class="clock" aria-label="Simulated time"><span id="clock">08:40</span></span>
+      <button class="link-btn" id="restart" type="button">Restart</button>
+    </div>
+  </header>
+
+  <main class="sim">
+    <section class="brief" id="brief"></section>
+
+    <div class="stage-grid">
+      <div class="device-col">
+        <div class="device" id="device">
+          <div class="device-screen">
+            <div class="dev-status"><span id="dev-time">08:40</span><span>4G &middot; 86%</span></div>
+            <div class="dev-app"><b>Gemba WMS</b><span>Floor app &middot; Shift A</span></div>
+            <div class="screen" id="screen"></div>
+          </div>
+        </div>
+        <p class="device-cap">The handheld an operator carries on the floor</p>
+      </div>
+
+      <section class="tower" aria-label="Control tower">
+        <div class="tower-head">
+          <span class="live"><i></i>Live</span>
+          <h2>Control tower</h2>
+          <span class="tower-sub">What supervisors see in the web console</span>
+        </div>
+        <div class="map-wrap">
+          <svg id="map" viewBox="0 0 760 380" role="img" aria-label="Warehouse floor plan: the gate and yard on the left, three docks, receiving and staging areas, and rack zones A and B"></svg>
+        </div>
+        <ul class="legend">
+          <li><i class="lg-ours"></i>CO-1L-12 &middot; cooking oil 1 L &times; 12</li>
+          <li><i class="lg-other"></i>Other SKUs</li>
+          <li><i class="lg-free"></i>Free slot</li>
+          <li><i class="lg-pallet"></i>Pallet on the move</li>
+          <li><i class="lg-target"></i>Task target</li>
+        </ul>
+        <div class="tower-bottom">
+          <div class="kpis" id="kpis"></div>
+          <div class="log-box">
+            <h3>Activity</h3>
+            <ol class="log" id="log" aria-live="polite"></ol>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <p class="fine">Vehicles, orders, batches and timings are illustrative. Screens are simplified from the Gemba WMS floor app and web console.</p>
+</div>
+
+<!-- Shown when the form has not been sent from this device -->
+<div class="overlay" id="gate" hidden>
+  <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="gate-h">
+    <p class="eyebrow">Interactive WMS</p>
+    <h2 id="gate-h" tabindex="-1">Book your assessment to open the simulator.</h2>
+    <p class="ov-p">The interactive WMS opens once you have sent the short form on our Kenya page. It takes a minute &mdash; then you can run an order through the system yourself.</p>
+    <a class="btn btn-primary" href="gemba-wms-kenya.html#book">Book a free warehouse assessment</a>
+    <p class="ov-small">Already sent it on this device? Reload this page.</p>
+  </div>
+</div>
+
+<div class="overlay" id="intro" hidden>
+  <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="intro-h">
+    <p class="eyebrow" id="intro-hi">Interactive WMS</p>
+    <h2 id="intro-h" tabindex="-1">Run one order through a warehouse on the Gemba WMS.</h2>
+    <p class="ov-p">You work the handheld an operator carries on the floor. Beside it is the control tower your supervisors watch &mdash; it updates the moment you scan.</p>
+    <ol class="intro-steps"><li>Gate in</li><li>Receive</li><li>Put-away</li><li>Pick</li><li>Dispatch</li></ol>
+    <dl class="intro-facts">
+      <div><dt>5</dt><dd>Stages</dd></div>
+      <div><dt>~3</dt><dd>Minutes</dd></div>
+      <div><dt>0</dt><dd>Sign-ins</dd></div>
+    </dl>
+    <p class="ov-small">Try a wrong move now and then. The system is built to stop it, and it counts every one.</p>
+    <button class="btn btn-primary" id="start" type="button">Start the simulation</button>
+  </div>
+</div>
+
+<div class="overlay" id="finish" hidden>
+  <div class="ov-card wide" role="dialog" aria-modal="true" aria-labelledby="finish-h">
+    <div id="finish-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- configuration ----------------
+     The simulator opens once the landing-page form has been sent from this
+     device. Set REQUIRE_FORM to false to open it for everyone, for example
+     for a sales demo. The check is a convenience, not security: it lives in
+     the visitor's own browser. */
+  var REQUIRE_FORM = true;
+  var LANDING_URL = "gemba-wms-kenya.html";
+  var ACCESS_KEY = "gemba-wms-access";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var screenEl = $("screen");
+  var deviceEl = $("device");
+
+  function esc(value) {
+    return String(value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function readAccess() {
+    try {
+      var raw = window.localStorage.getItem(ACCESS_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function fmt(mins) {
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+
+  var SCAN_ICO =
+    '<svg class="ico" viewBox="0 0 20 20" aria-hidden="true">' +
+    '<path d="M2 6V3h3M15 3h3v3M18 14v3h-3M5 17H2v-3" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+    '<path d="M6 6v8M8.5 6v8M11 6v8M14 6v8" stroke="currentColor" stroke-width="1.4"/></svg>';
+
+  /* ---------------- story ----------------
+     One order, gate to gate. Each stage maps to modules in the Gemba WMS:
+     gate entry, health check, dock plan, ASN receiving, QC, GRN, directed
+     put-away, FEFO allocation, picking, pre-dispatch inspection, loading,
+     goods issue, invoice and the SAP integration monitor. */
+  var STAGES = [
+    {
+      label: "Gate in",
+      title: "Gate in and dock",
+      brief: "08:40. Truck KDA 412M has reached the gate with ASN-2041 &mdash; three pallets of cooking oil from the supplier. Check it, gate it in and get it onto a dock.",
+      whyTitle: "Every truck has a clock from the gate.",
+      why: "Yard time is one of the first things we measure in an assessment, and most sites can&rsquo;t say how long a truck waited. Here the turnaround timer starts at the gate, and the dock plan stops two trucks being sent to one door."
+    },
+    {
+      label: "Receive",
+      title: "Receive against the ASN",
+      brief: "The truck is on Dock 2. Scan each pallet off against the supplier&rsquo;s advance shipping notice &mdash; the system compares what arrived with what was promised.",
+      whyTitle: "Stock drift starts at the receiving dock.",
+      why: "A two-carton shortage ticked off on a paper ASN becomes two cartons the system thinks it has. Recording it at the dock, with a supplier claim attached, is what keeps record and shelf in step months later."
+    },
+    {
+      label: "Put-away",
+      title: "Directed put-away",
+      brief: "Three pallets are waiting in receiving. The WMS gives each one an address from the zone rules; your job is to take it there and prove it with a scan.",
+      whyTitle: "Every pallet has an address the moment it lands.",
+      why: "Directed put-away replaces memory with rules. When the location is scanned, not remembered, nobody spends the afternoon looking for stock that is &ldquo;somewhere in aisle A&rdquo;."
+    },
+    {
+      label: "Pick",
+      title: "Pick with FEFO",
+      brief: "09:40. Order SO-7782 has dropped in: 50 cartons for a distributor in Nakuru. The system has already allocated stock first-expiry-first-out &mdash; go and pick it.",
+      whyTitle: "Expiry write-offs stop at the scanner.",
+      why: "FEFO is enforced at the scanner, not printed on a list someone can ignore. Expired-stock write-offs turn up in almost every assessment we run; this is where they stop."
+    },
+    {
+      label: "Dispatch",
+      title: "Inspect, load and gate out",
+      brief: "09:58. Truck KBZ 931C is on Dock 3 for SO-7782. Inspect the load, scan it on, seal the truck and send it out.",
+      whyTitle: "Finance sees the dispatch as the truck leaves.",
+      why: "Goods issue and the invoice post from the gate-out scan and sync to SAP in seconds &mdash; not typed up from a delivery note the next morning. The order, the stock and the books close together."
+    }
+  ];
+  var FIRST_STEP = ["g1", "r1", "p1", "k1", "d1"];
+
+  /* ---------------- state ---------------- */
+  var S;
+  var gen = 0; // bumps on restart so stale animation timers do nothing
+
+  function fresh() {
+    return {
+      stage: 0, step: "g1", done: false, busy: false,
+      clock: 8 * 60 + 40, gateIn: null, dockOut: null,
+      scans: 0, caught: 0, sap: 0,
+      checks: {}, alert: null,
+      rcv: { P1: 0, P2: 0, P3: 0 }, variance: null,
+      pa: false, pickQty: 0,
+      loaded: { O1: false, O2: false },
+      accuracy: null, order: "Not released"
+    };
+  }
+
+  function later(fn, ms) {
+    var g = gen;
+    setTimeout(function () { if (g === gen) fn(); }, ms);
+  }
+
+  function tick(mins) { S.clock += mins; }
+
+  /* ---------------- floor plan ---------------- */
+  var CELLS = {};
+  var ROWS = [["A-01", 42], ["A-02", 108], ["B-01", 198], ["B-02", 264]];
+  var BAYS = [360, 452, 544, 636];
+  var START_STOCK = {
+    "A-01-1": ["Flour 2 kg", "55 ctn"], "A-01-4": ["Salt 500 g", "70 ctn"],
+    "A-02-1": ["Rice 5 kg", "32 bags"], "A-02-2": ["Flour 2 kg", "48 ctn"],
+    "B-01-1": ["Tea 250 g", "90 ctn"], "B-01-3": ["Sugar 1 kg", "64 ctn"],
+    "B-02-2": ["Rice 5 kg", "40 bags"], "B-02-4": ["Salt 500 g", "52 ctn"]
+  };
+  var SPOT = {
+    gate: [24, 336], yard: [50, 196], exit: [24, 430],
+    d1: [50, 41], d2: [50, 119], d3: [50, 269],
+    inBox: [100, 125], outBox: [100, 275],
+    rcv1: [186, 146], rcv2: [222, 146], rcv3: [258, 146],
+    st1: [186, 290], st2: [222, 290]
+  };
+
+  // Tokens that start off-stage are hidden in the markup itself, so a
+  // restart never flashes them before the first opacity change.
+  function truckSvg(id, plate, tone, hidden) {
+    return '<g class="mv truck ' + tone + '" id="' + id + '"' + (hidden ? ' style="opacity:0"' : "") + '>' +
+      '<rect class="cab" x="0" y="6" width="22" height="32" rx="5"/>' +
+      '<rect class="cabwin" x="4" y="10" width="10" height="9" rx="2"/>' +
+      '<rect class="box" x="26" y="0" width="70" height="38" rx="4"/>' +
+      '<text class="plate" x="61" y="23">' + plate + '</text></g>';
+  }
+
+  function palletSvg(id, label) {
+    return '<g class="mv pallet" id="' + id + '" style="opacity:0"><rect width="26" height="26" rx="5"/>' +
+      '<text x="13" y="17">' + label + '</text></g>';
+  }
+
+  function buildMap() {
+    var h = [];
+    h.push('<rect class="yard" x="0" y="0" width="150" height="380"/>');
+    h.push('<rect class="building" x="150" y="12" width="598" height="356" rx="10"/>');
+
+    h.push('<text class="lbl strong" x="10" y="322">GATE</text>');
+    h.push('<rect class="barrier" id="barrier" x="8" y="328" width="128" height="5" rx="2"/>');
+
+    [["1", 34, "IN"], ["2", 112, "IN"], ["3", 262, "OUT"]].forEach(function (d) {
+      h.push('<rect class="door" id="door-' + d[0] + '" x="146" y="' + d[1] + '" width="8" height="52" rx="2"/>');
+      h.push('<text class="lbl" x="52" y="' + (d[1] + 1) + '">DOCK ' + d[0] + ' &#183; ' + d[2] + '</text>');
+    });
+
+    h.push('<rect class="zone" x="166" y="108" width="140" height="128" rx="8"/>');
+    h.push('<text class="lbl" x="176" y="126">RECEIVING &#183; QC</text>');
+    h.push('<rect class="zone" x="166" y="252" width="140" height="96" rx="8"/>');
+    h.push('<text class="lbl" x="176" y="270">STAGING &#183; DOCK 3</text>');
+
+    h.push('<text class="lbl strong" x="360" y="34">ZONE A &#183; FAST MOVERS</text>');
+    h.push('<text class="lbl strong" x="360" y="190">ZONE B</text>');
+
+    CELLS = {};
+    ROWS.forEach(function (row) {
+      var y = row[1];
+      h.push('<text class="lbl strong" x="322" y="' + (y + 26) + '">' + row[0] + '</text>');
+      BAYS.forEach(function (x, i) {
+        var id = row[0] + "-" + (i + 1);
+        CELLS[id] = { x: x, y: y };
+        h.push('<g class="cell" id="cell-' + id + '">' +
+          '<rect x="' + x + '" y="' + y + '" width="88" height="44" rx="6"/>' +
+          '<text class="c1" x="' + (x + 8) + '" y="' + (y + 18) + '"></text>' +
+          '<text class="c2" x="' + (x + 8) + '" y="' + (y + 34) + '"></text>' +
+          '<text class="cid" x="' + (x + 81) + '" y="' + (y + 13) + '">' + (i + 1) + '</text></g>');
+      });
+    });
+
+    h.push(truckSvg("t-other", "KCB 778T", "other"));
+    h.push(truckSvg("t-in", "KDA 412M", "ours"));
+    h.push(truckSvg("t-out", "KBZ 931C", "ours2", true));
+    h.push(palletSvg("P1", "P1"));
+    h.push(palletSvg("P2", "P2"));
+    h.push(palletSvg("P3", "P3"));
+    h.push(palletSvg("O1", "40"));
+    h.push(palletSvg("O2", "10"));
+
+    $("map").innerHTML = h.join("");
+
+    Object.keys(CELLS).forEach(function (id) {
+      var stock = START_STOCK[id];
+      if (stock) setCell(id, "other", stock[0], stock[1]);
+      else setCell(id, "free", "", "");
+    });
+
+    place("t-other", SPOT.d1, true);
+    place("t-in", SPOT.gate, true);
+    place("t-out", SPOT.gate, true);
+    ["P1", "P2", "P3", "O1", "O2"].forEach(function (id) { place(id, SPOT.inBox, true); });
+    doors({ 1: "busy" });
+  }
+
+  function place(id, xy, instant) {
+    var el = $(id);
+    if (!el) return;
+    if (instant) el.classList.add("instant");
+    el.style.transform = "translate(" + xy[0] + "px," + xy[1] + "px)";
+    if (instant) {
+      void el.getBoundingClientRect();
+      el.classList.remove("instant");
+    }
+  }
+
+  function show(id, on) {
+    var el = $(id);
+    if (el) el.style.opacity = on ? "1" : "0";
+  }
+
+  function fadeLater(id) { later(function () { show(id, false); }, 900); }
+
+  function cellSpot(id) { var c = CELLS[id]; return [c.x + 31, c.y + 9]; }
+
+  function setCell(id, kind, l1, l2) {
+    var g = $("cell-" + id);
+    var wasTarget = g.classList.contains("target");
+    g.setAttribute("class", "cell " + kind + (wasTarget ? " target" : ""));
+    g.querySelector(".c1").textContent = l1 || "";
+    g.querySelector(".c2").textContent = l2 || "";
+  }
+
+  function target(id) {
+    var current = document.querySelectorAll(".cell.target");
+    for (var i = 0; i < current.length; i++) current[i].classList.remove("target");
+    if (id) $("cell-" + id).classList.add("target");
+  }
+
+  function doors(states) {
+    ["1", "2", "3"].forEach(function (n) {
+      $("door-" + n).setAttribute("class", "door " + (states[n] || ""));
+    });
+  }
+
+  function barrier() {
+    var b = $("barrier");
+    b.classList.add("open");
+    later(function () { b.classList.remove("open"); }, 1500);
+  }
+
+  function unload(token) {
+    var slot = { P1: "rcv1", P2: "rcv2", P3: "rcv3" }[token];
+    place(token, SPOT.inBox, true);
+    show(token, true);
+    later(function () { place(token, SPOT[slot]); }, 40);
+  }
+
+  function store(token, cellId, l1, l2) {
+    place(token, cellSpot(cellId));
+    later(function () {
+      show(token, false);
+      setCell(cellId, "ours", l1, l2);
+    }, 900);
+  }
+
+  function pickTo(token, cellId, slot) {
+    place(token, cellSpot(cellId), true);
+    show(token, true);
+    later(function () { place(token, SPOT[slot]); }, 40);
+  }
+
+  /* ---------------- activity log ---------------- */
+  function log(tag, text, tone, at) {
+    var li = document.createElement("li");
+    li.className = "ev" + (tone ? " " + tone : "");
+    li.innerHTML = '<time>' + fmt(at === undefined ? S.clock : at) + '</time>' +
+      '<span class="tag">' + tag + '</span><span class="txt">' + text + '</span>';
+    var list = $("log");
+    list.insertBefore(li, list.firstChild);
+  }
+
+  function sap(doc) {
+    S.sap++;
+    log("SAP", doc + " synced to SAP &#183; acknowledged in 0.8 s", "sap");
+  }
+
+  function seedLog() {
+    log("ASN", "ASN-2041 received &#183; 3 pallets due 08:45", "", 8 * 60 + 5);
+    log("PLAN", "Dock 1 busy until 09:20 &#183; Dock 3 held for 10:00 outbound", "", 8 * 60 + 30);
+    log("GATE", "KDA 412M at the gate", "", 8 * 60 + 40);
+  }
+
+  /* ---------------- handheld screens ---------------- */
+  function title(kicker, text) {
+    return '<p class="s-kicker">' + kicker + '</p><h2 class="s-title" tabindex="-1">' + text + '</h2>';
+  }
+
+  function note(text) { return '<p class="s-note">' + text + '</p>'; }
+
+  function kv(rows) {
+    return '<dl class="s-kv">' + rows.map(function (r) {
+      return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>';
+    }).join("") + '</dl>';
+  }
+
+  function btn(act, label, opts) {
+    opts = opts || {};
+    return '<button type="button" class="s-btn' + (opts.ghost ? " ghost" : "") + '" data-act="' + act + '"' +
+      (opts.arg ? ' data-arg="' + opts.arg + '"' : "") + (opts.disabled ? " disabled" : "") + '>' +
+      (opts.scan ? SCAN_ICO : "") + '<span>' + label + '</span></button>';
+  }
+
+  function choice(act, arg, head, sub, tag) {
+    return '<button type="button" class="s-choice" data-act="' + act + '" data-arg="' + arg + '">' +
+      '<b>' + head + '</b><span>' + sub + '</span>' + (tag ? '<em>' + tag + '</em>' : "") + '</button>';
+  }
+
+  function rackLabel(code) {
+    return '<button type="button" class="s-tag" data-act="paLoc" data-arg="' + code + '">' +
+      SCAN_ICO + '<span>' + code + '</span></button>';
+  }
+
+  function checks(items) {
+    return '<ul class="s-checks">' + items.map(function (it) {
+      var on = !!S.checks[it[0]];
+      return '<li><button type="button" class="s-check' + (on ? " on" : "") + '" data-act="check" data-arg="' + it[0] +
+        '" aria-pressed="' + on + '"><span class="box" aria-hidden="true"></span><span>' + it[1] + '</span></button></li>';
+    }).join("") + '</ul>';
+  }
+
+  function allChecked(keys) {
+    return keys.every(function (k) { return S.checks[k]; });
+  }
+
+  function alertHtml() {
+    if (!S.alert) return "";
+    return '<div class="s-alert ' + S.alert.type + '" role="' + (S.alert.type === "block" ? "alert" : "status") + '">' +
+      '<b>' + S.alert.title + '</b><p>' + S.alert.text + '</p></div>';
+  }
+
+  var GATE_CHECKS = ["tyres", "seal", "cabin"];
+  var PDI_CHECKS = ["count", "labels", "bed"];
+
+  var SCREENS = {
+    g1: function () {
+      return title("Gate entry", "Vehicle at the gate") +
+        kv([["Vehicle", "KDA 412M"], ["Document", "ASN-2041 &#183; 3 pallets"],
+            ["Appointment", '08:45 <span class="pill ok">On time</span>']]) +
+        alertHtml() + btn("scanPass", "Scan gate pass", { scan: true });
+    },
+
+    g2: function () {
+      return title("Gate entry", "Vehicle health check") +
+        note("Tap each item once you have checked it.") +
+        checks([["tyres", "Tyres and lights"], ["seal", "Load seal intact &#183; KS-88213"],
+                ["cabin", "Cabin and load floor clean"]]) +
+        btn("gateIn", "Gate in", { disabled: !allChecked(GATE_CHECKS) });
+    },
+
+    g3: function () {
+      return title("Dock plan", "Assign a dock") +
+        note("Live from the dock plan. Choose where KDA 412M unloads.") +
+        '<div class="s-choices">' +
+          choice("dock", "1", "Dock 1", "Occupied &#183; KCB 778T until 09:20") +
+          choice("dock", "2", "Dock 2", "Free &#183; inbound", "Suggested") +
+          choice("dock", "3", "Dock 3", "Free &#183; held for 10:00 outbound") +
+        '</div>' + alertHtml();
+    },
+
+    r1: function () {
+      var rows = [["P1", "P-001", "B2409 &#183; exp Mar 2027"], ["P2", "P-002", "B2409 &#183; exp Mar 2027"],
+                  ["P3", "P-003", "B2411 &#183; exp May 2027"]];
+      var html = title("Receiving &#183; Dock 2", "Unload against ASN-2041") +
+        note("Scan each pallet as it comes off the truck.") + '<ul class="s-lines">';
+      rows.forEach(function (r) {
+        var q = S.rcv[r[0]];
+        var short = q && q < 40;
+        html += '<li class="s-line' + (q ? " done" : "") + (short ? " short" : "") + '">' +
+          '<div class="s-line-main"><b>' + r[1] + '</b><span>' + r[2] + '</span></div>' +
+          '<div class="s-line-qty">' + (q || "&mdash;") + ' / 40</div>' +
+          (q
+            ? '<span class="s-line-ok" aria-label="' + (short ? "Short" : "Received") + '">' + (short ? "!" : "&#10003;") + '</span>'
+            : '<button type="button" class="s-mini" data-act="scanPallet" data-arg="' + r[0] + '">Scan</button>') +
+          '</li>';
+      });
+      html += '</ul>';
+      if (S.variance === "open") {
+        html += '<div class="s-variance"><b>Short by 2 cartons</b><p>P-003 counted 38 against 40 on the ASN.</p>' +
+          '<div class="s-pair">' + btn("variance", "Record shortage of 2", { arg: "record" }) +
+          btn("variance", "Accept as 40", { arg: "accept", ghost: true }) + '</div></div>';
+      }
+      html += alertHtml();
+      if (S.rcv.P1 && S.rcv.P2 && S.rcv.P3 && S.variance === "recorded") {
+        html += btn("toQc", "Continue to quality check");
+      }
+      return html;
+    },
+
+    r2: function () {
+      return title("Quality check", "Incoming QC &#183; ASN-2041") +
+        '<ul class="s-auto"><li>Seal and packaging intact</li><li>Batch and expiry labels legible</li>' +
+        '<li>Shelf life 7+ months &#183; inbound rule &ge; 6</li></ul>' +
+        note("Checks run against the QC plan for this SKU.") +
+        btn("qcPass", "Pass QC");
+    },
+
+    r3: function () {
+      return title("Receiving", "Post the goods receipt") +
+        kv([["Expected", "120 ctn"], ["Received", "118 ctn"], ["Shortage", "2 ctn &#183; claim raised"],
+            ["Batches", "B2409 &times; 80 &#183; B2411 &times; 38"]]) +
+        btn("grn", "Post GRN");
+    },
+
+    p1: function () {
+      var html = title("Put-away", "Pallet P-003") +
+        kv([["Pallet", "P-003 &#183; B2411 &#183; 38 ctn"], ["Go to", '<span class="loc">A-02-3</span>'],
+            ["Why here", "Zone A for fast movers &#183; nearest free slot to Dock 2"]]);
+      if (!S.pa) return html + btn("paPallet", "Scan pallet P-003", { scan: true });
+      return html + note("You are in aisle A. Scan the rack label in front of you.") +
+        '<div class="s-labels">' + rackLabel("A-02-4") + rackLabel("A-02-3") + rackLabel("A-01-4") + '</div>' +
+        alertHtml();
+    },
+
+    p2: function () {
+      return title("Put-away", "Two more pallets") +
+        kv([["P-001", '&rarr; <span class="loc">A-01-2</span>'], ["P-002", '&rarr; <span class="loc">A-01-3</span>'],
+            ["Rule", "Same batch kept side by side"]]) +
+        btn("paRest", "Scan and put away both", { scan: true });
+    },
+
+    k1: function () {
+      return title("Pick 1 of 2", "SO-7782 &#183; Nakuru") +
+        kv([["Go to", '<span class="loc">A-01-2</span>'], ["Pick", "40 ctn &#183; batch B2409"],
+            ["Expiry", "Mar 2027 &#183; earliest on hand"]]) +
+        note("Two pallets of the same product are within reach. Scan the one you&rsquo;re picking from.") +
+        '<div class="s-choices">' +
+          choice("pick1", "A-02-3", "A-02-3 &#183; B2411", "38 ctn &#183; exp May 2027 &#183; nearer the dock") +
+          choice("pick1", "A-01-2", "A-01-2 &#183; B2409", "40 ctn &#183; exp Mar 2027") +
+        '</div>' + alertHtml();
+    },
+
+    k2: function () {
+      return title("Pick 2 of 2", "Part pallet &#183; A-01-3") +
+        kv([["Go to", '<span class="loc">A-01-3</span>'], ["Pick", "10 of 40 ctn &#183; B2409"]]) +
+        note("Count the cartons onto the trolley, then confirm.") +
+        '<div class="s-stepper" role="group" aria-label="Cartons counted">' +
+          '<button type="button" data-act="qty" data-arg="-1" aria-label="Remove one carton">&minus;1</button>' +
+          '<output aria-live="polite">' + S.pickQty + '</output>' +
+          '<button type="button" data-act="qty" data-arg="1" aria-label="Add one carton">+1</button>' +
+          '<button type="button" data-act="qty" data-arg="5" aria-label="Add five cartons">+5</button>' +
+        '</div>' + alertHtml() +
+        btn("pick2", "Confirm " + S.pickQty + " ctn", { scan: true, disabled: S.pickQty === 0 });
+    },
+
+    k3: function () {
+      return title("Staging", "Drop at Dock 3") +
+        kv([["Order", "SO-7782 &#183; 50 / 50 ctn"], ["Lane", '<span class="loc">D3-S1</span>']]) +
+        btn("stage", "Scan lane D3-S1", { scan: true });
+    },
+
+    d1: function () {
+      return title("Pre-dispatch inspection", "SO-7782 &#183; KBZ 931C") +
+        note("Tick each check as you make it.") +
+        checks([["count", "Count matches &#183; 50 ctn"], ["labels", "Batch and expiry on every carton"],
+                ["bed", "Truck bed clean and dry"]]) +
+        btn("pdi", "Inspection passed", { disabled: !allChecked(PDI_CHECKS) });
+    },
+
+    d2: function () {
+      function row(id, head, sub) {
+        var done = S.loaded[id];
+        return '<li class="s-line' + (done ? " done" : "") + '"><div class="s-line-main"><b>' + head + '</b><span>' + sub + '</span></div>' +
+          (done ? '<span class="s-line-ok" aria-label="Loaded">&#10003;</span>'
+                : '<button type="button" class="s-mini" data-act="load" data-arg="' + id + '">Scan</button>') + '</li>';
+      }
+      return title("Loading", "Load KBZ 931C") +
+        note("Scan each pallet as it goes onto the truck.") +
+        '<ul class="s-lines">' + row("O1", "Pallet &#183; 40 ctn", "B2409 from A-01-2") +
+        row("O2", "Part pallet &#183; 10 ctn", "B2409 from A-01-3") + '</ul>' +
+        btn("seal", "Seal the truck", { disabled: !(S.loaded.O1 && S.loaded.O2) });
+    },
+
+    d3: function () {
+      return title("Gate out", "KBZ 931C &#183; SO-7782") +
+        kv([["Seal", "KS-90417"], ["On gate out", "Goods issue &#183; invoice &#183; SAP"]]) +
+        btn("gateOut", "Scan out at the gate", { scan: true });
+    }
+  };
+
+  function doneHtml() {
+    var last = S.stage === STAGES.length - 1;
+    return '<div class="s-done"><span class="s-tick" aria-hidden="true">&#10003;</span>' +
+      '<p class="s-kicker">Stage ' + (S.stage + 1) + ' of ' + STAGES.length + '</p>' +
+      '<h2 class="s-title" tabindex="-1">' + STAGES[S.stage].title + ' &mdash; done</h2>' +
+      '<p class="s-done-sub">Everything you scanned is already in the control tower.</p>' +
+      btn("next", last ? "See your results" : "Next: " + STAGES[S.stage + 1].label + " &rarr;") + '</div>';
+  }
+
+  /* ---------------- flow helpers ---------------- */
+  function go(step) {
+    S.step = step;
+    S.alert = null;
+    render(true);
+  }
+
+  function complete() {
+    S.done = true;
+    S.alert = null;
+    target(null);
+    render(true);
+  }
+
+  function block(heading, text, logText) {
+    S.caught++;
+    S.alert = { type: "block", title: heading, text: text };
+    log("BLOCK", logText, "block");
+    deviceEl.classList.remove("shake");
+    void deviceEl.offsetWidth;
+    deviceEl.classList.add("shake");
+    render();
+  }
+
+  // Plays the scanner laser on the tapped control, then runs the outcome.
+  function scanThen(button, fn) {
+    if (S.busy) return;
+    S.busy = true;
+    if (button) button.classList.add("scanning");
+    screenEl.classList.add("is-busy");
+    later(function () {
+      S.busy = false;
+      screenEl.classList.remove("is-busy");
+      fn();
+    }, 520);
+  }
+
+  function enterStage(n) {
+    S.stage = n;
+    S.done = false;
+    S.checks = {};
+    if (n === 3) {
+      S.clock = Math.max(S.clock, 9 * 60 + 40);
+      S.order = "Allocated &#183; FEFO";
+      log("ORDER", "SO-7782 released &#183; Distributor, Nakuru &#183; 50 ctn");
+      log("ALLOC", "FEFO: 40 from A-01-2 + 10 from A-01-3 &#183; B2409, exp Mar 2027");
+      target("A-01-2");
+    }
+    if (n === 4) {
+      S.clock = Math.max(S.clock, 9 * 60 + 58);
+      place("t-out", SPOT.gate, true);
+      show("t-out", true);
+      later(function () {
+        barrier();
+        place("t-out", SPOT.d3);
+        doors({ 1: "busy", 3: "used" });
+      }, 350);
+      log("GATE", "KBZ 931C gated in for SO-7782");
+      log("DOCK", "KBZ 931C on Dock 3");
+    }
+    go(FIRST_STEP[n]);
+  }
+
+  /* ---------------- actions ---------------- */
+  var ACTIONS = {
+    scanPass: function (arg, b) {
+      scanThen(b, function () {
+        S.scans++;
+        tick(1);
+        log("GATE", "Gate pass verified &#183; matched to ASN-2041");
+        go("g2");
+      });
+    },
+
+    check: function (arg) {
+      S.checks[arg] = !S.checks[arg];
+      render();
+    },
+
+    gateIn: function () {
+      if (!allChecked(GATE_CHECKS)) return;
+      tick(1);
+      S.gateIn = S.clock;
+      log("GATE", "Health check passed &#183; KDA 412M gated in");
+      barrier();
+      place("t-in", SPOT.yard);
+      doors({ 1: "busy", 2: "rec", 3: "held" });
+      go("g3");
+    },
+
+    dock: function (arg) {
+      if (arg === "1") {
+        return block("Dock 1 is occupied",
+          "KCB 778T is unloading there until 09:20. The dock plan won&rsquo;t send two trucks to one door.",
+          "Dock 1 refused for KDA 412M &#183; occupied");
+      }
+      if (arg === "3") {
+        return block("Dock 3 is held for outbound",
+          "It&rsquo;s reserved for a 10:00 dispatch. Parking an inbound truck there would hold up the next order.",
+          "Dock 3 refused for KDA 412M &#183; held for outbound");
+      }
+      tick(2);
+      place("t-in", SPOT.d2);
+      doors({ 1: "busy", 2: "used" });
+      log("DOCK", "KDA 412M docked at Dock 2");
+      complete();
+    },
+
+    scanPallet: function (arg, b) {
+      if (S.rcv[arg]) return;
+      scanThen(b, function () {
+        S.scans++;
+        tick(4);
+        var qty = arg === "P3" ? 38 : 40;
+        S.rcv[arg] = qty;
+        unload(arg);
+        log("RCV", "P-00" + arg.charAt(1) + " scanned &#183; " + qty + " ctn");
+        if (arg === "P3") {
+          S.variance = "open";
+          log("VAR", "ASN-2041 &#183; P-003 counted 38 of 40", "warn");
+        }
+        render();
+      });
+    },
+
+    variance: function (arg) {
+      if (arg === "accept") {
+        return block("That would hide a shortage",
+          "The WMS posts what was scanned, not what was promised. Accepting 40 would put 2 phantom cartons on the books &mdash; the start of a stock gap nobody can explain later.",
+          "Override of ASN-2041 shortage refused");
+      }
+      tick(1);
+      S.variance = "recorded";
+      S.alert = { type: "ok", title: "Shortage recorded", text: "A supplier claim for 2 cartons is raised against ASN-2041." };
+      log("VAR", "2 ctn short recorded &#183; supplier claim raised");
+      render();
+    },
+
+    toQc: function () { go("r2"); },
+
+    qcPass: function () {
+      tick(4);
+      log("QC", "B2409 and B2411 passed incoming QC");
+      go("r3");
+    },
+
+    grn: function () {
+      tick(3);
+      log("GRN", "GRN-5531 posted &#183; 118 ctn");
+      sap("GRN-5531");
+      tick(7);
+      S.dockOut = S.clock;
+      barrier();
+      place("t-in", SPOT.exit);
+      fadeLater("t-in");
+      doors({ 1: "busy" });
+      log("DOCK", "KDA 412M out &#183; turnaround " + (S.dockOut - S.gateIn) + " min");
+      complete();
+    },
+
+    paPallet: function (arg, b) {
+      scanThen(b, function () {
+        S.scans++;
+        tick(2);
+        S.pa = true;
+        target("A-02-3");
+        render();
+      });
+    },
+
+    paLoc: function (arg, b) {
+      scanThen(b, function () {
+        if (arg !== "A-02-3") {
+          return block("Location mismatch",
+            "The task says A-02-3; you scanned " + arg + ". Put-away stays locked until the right label is scanned &mdash; that&rsquo;s how &ldquo;we can&rsquo;t find it&rdquo; disappears.",
+            "Put-away of P-003 to " + arg + " refused");
+        }
+        S.scans++;
+        tick(3);
+        store("P3", "A-02-3", "B2411", "38 ctn");
+        target(null);
+        log("PUT", "P-003 &rarr; A-02-3 &#183; 38 ctn");
+        go("p2");
+      });
+    },
+
+    paRest: function (arg, b) {
+      scanThen(b, function () {
+        S.scans += 2;
+        tick(8);
+        store("P1", "A-01-2", "B2409", "40 ctn");
+        later(function () { store("P2", "A-01-3", "B2409", "40 ctn"); }, 150);
+        log("PUT", "P-001 &rarr; A-01-2 &#183; 40 ctn");
+        log("PUT", "P-002 &rarr; A-01-3 &#183; 40 ctn");
+        // Close the stage only once both pallets have landed, so the pick
+        // stage can never act on a slot that is still being filled.
+        S.busy = true;
+        screenEl.classList.add("is-busy");
+        later(function () {
+          S.busy = false;
+          screenEl.classList.remove("is-busy");
+          S.accuracy = "100%";
+          log("CHK", "Record matches shelf &#183; 3 of 3 locations");
+          complete();
+        }, 1100);
+      });
+    },
+
+    pick1: function (arg, b) {
+      scanThen(b, function () {
+        if (arg !== "A-01-2") {
+          return block("Wrong batch for this order",
+            "B2411 expires in May 2027; B2409 in March. FEFO ships the earliest expiry first &mdash; picking newer stock is how older stock ends up written off.",
+            "Pick from A-02-3 refused &#183; FEFO");
+        }
+        S.scans++;
+        tick(6);
+        pickTo("O1", "A-01-2", "st1");
+        setCell("A-01-2", "free", "", "");
+        target("A-01-3");
+        S.order = "Picking &#183; 40 / 50";
+        log("PICK", "40 ctn from A-01-2 &#183; B2409");
+        go("k2");
+      });
+    },
+
+    qty: function (arg) {
+      S.pickQty = Math.max(0, Math.min(40, S.pickQty + Number(arg)));
+      S.alert = null;
+      render();
+    },
+
+    pick2: function (arg, b) {
+      var q = S.pickQty;
+      if (q !== 10) {
+        return block(q > 10 ? "Over-pick blocked" : "Short-pick blocked",
+          "The task is 10 cartons; you counted " + q + ". The scanner won&rsquo;t confirm a quantity that doesn&rsquo;t match, so the order and the shelf stay right.",
+          "Pick of " + q + " ctn at A-01-3 refused &#183; task is 10");
+      }
+      scanThen(b, function () {
+        S.scans++;
+        tick(5);
+        pickTo("O2", "A-01-3", "st2");
+        setCell("A-01-3", "ours", "B2409", "30 ctn");
+        target(null);
+        S.order = "Picked &#183; 50 / 50";
+        log("PICK", "10 ctn from A-01-3 &#183; 30 left");
+        go("k3");
+      });
+    },
+
+    stage: function (arg, b) {
+      scanThen(b, function () {
+        S.scans++;
+        tick(3);
+        S.order = "Staged &#183; Dock 3";
+        log("STAGE", "SO-7782 staged at Dock 3 &#183; 50 / 50");
+        complete();
+      });
+    },
+
+    pdi: function () {
+      if (!allChecked(PDI_CHECKS)) return;
+      tick(4);
+      log("PDI", "SO-7782 passed pre-dispatch inspection");
+      go("d2");
+    },
+
+    load: function (arg, b) {
+      if (S.loaded[arg]) return;
+      scanThen(b, function () {
+        S.scans++;
+        tick(2);
+        S.loaded[arg] = true;
+        place(arg, SPOT.outBox);
+        fadeLater(arg);
+        log("LOAD", (arg === "O1" ? "40" : "10") + " ctn loaded on KBZ 931C");
+        render();
+      });
+    },
+
+    seal: function () {
+      if (!(S.loaded.O1 && S.loaded.O2)) return;
+      tick(1);
+      S.order = "Loaded &#183; seal KS-90417";
+      log("LOAD", "KBZ 931C sealed &#183; KS-90417");
+      go("d3");
+    },
+
+    gateOut: function (arg, b) {
+      scanThen(b, function () {
+        S.scans++;
+        tick(3);
+        barrier();
+        place("t-out", SPOT.exit);
+        fadeLater("t-out");
+        doors({ 1: "busy" });
+        log("GATE", "KBZ 931C gated out");
+        log("GI", "Goods issue GI-8810 posted");
+        sap("GI-8810");
+        log("INV", "Invoice INV-3392 created");
+        sap("INV-3392");
+        S.order = "Dispatched &#183; " + fmt(S.clock);
+        complete();
+      });
+    },
+
+    next: function () {
+      if (S.stage === STAGES.length - 1) finish();
+      else enterStage(S.stage + 1);
+    }
+  };
+
+  /* ---------------- rendering ---------------- */
+  function renderRail() {
+    $("rail").innerHTML = STAGES.map(function (st, i) {
+      var state = i < S.stage || (i === S.stage && S.done) ? "done" : i === S.stage ? "now" : "";
+      return '<li class="' + state + '"' + (i === S.stage ? ' aria-current="step"' : "") + '>' +
+        '<span class="dot">' + (state === "done" ? "&#10003;" : i + 1) + '</span><span class="lbl">' + st.label + '</span></li>';
+    }).join("");
+  }
+
+  function renderBrief() {
+    var st = STAGES[S.stage];
+    var el = $("brief");
+    el.className = "brief" + (S.done ? " done" : "");
+    el.innerHTML = S.done
+      ? '<p class="eyebrow">Why it matters</p><h1>' + st.whyTitle + '</h1><p class="brief-text">' + st.why + '</p>'
+      : '<p class="eyebrow">Stage ' + (S.stage + 1) + ' of ' + STAGES.length + ' &#183; ' + st.label + '</p>' +
+        '<h1>' + st.title + '</h1><p class="brief-text">' + st.brief + '</p>';
+  }
+
+  function tile(label, value, sub, mod) {
+    return '<div class="kpi' + (mod === "running" ? " is-running" : "") + '"><p class="kpi-l">' + label + '</p>' +
+      '<p class="kpi-v' + (mod === "text" ? " text" : "") + '">' + value + '</p><p class="kpi-s">' + sub + '</p></div>';
+  }
+
+  function renderKpis() {
+    var turnValue = S.gateIn === null ? "&mdash;"
+      : (S.dockOut !== null ? S.dockOut : S.clock) - S.gateIn + " min";
+    var turnSub = S.gateIn === null ? "Truck at the gate"
+      : S.dockOut !== null ? "Gate in to dock out &#183; KDA 412M" : "Running &#183; KDA 412M on site";
+    var running = S.gateIn !== null && S.dockOut === null;
+
+    $("kpis").innerHTML =
+      tile("Inbound turnaround", turnValue, turnSub, running ? "running" : "") +
+      tile("Inventory accuracy", S.accuracy || "&mdash;", S.accuracy ? "Record matches shelf" : "Updates after put-away") +
+      tile("Order SO-7782", S.order, "Distributor, Nakuru &#183; 50 ctn", "text") +
+      tile("SAP postings", S.sap + " sent", S.sap ? "0 failed &#183; all acknowledged" : "Waiting for the first posting");
+  }
+
+  function render(focus) {
+    $("clock").textContent = fmt(S.clock);
+    $("dev-time").textContent = fmt(S.clock);
+    $("caught").textContent = S.caught;
+    renderRail();
+    renderBrief();
+    renderKpis();
+    screenEl.innerHTML = S.done ? doneHtml() : SCREENS[S.step]();
+    if (focus) {
+      var heading = screenEl.querySelector(".s-title");
+      if (heading) heading.focus({ preventScroll: true });
+    }
+  }
+
+  /* ---------------- overlays ---------------- */
+  function showOverlay(id) {
+    ["gate", "intro", "finish"].forEach(function (o) { $(o).hidden = o !== id; });
+    $("app").inert = !!id;
+    document.body.style.overflow = id ? "hidden" : "";
+    if (id) {
+      var heading = $(id).querySelector("h2");
+      if (heading) heading.focus({ preventScroll: true });
+    }
+  }
+
+  function finish() {
+    var turn = S.dockOut - S.gateIn;
+    var name = access && access.firstName ? esc(access.firstName) : "";
+    var caughtLine = S.caught
+      ? "On paper, " + (S.caught === 1 ? "that slip" : "those " + S.caught + " slips") +
+        " would have gone straight into the stock record. Here, the scanner refused " +
+        (S.caught === 1 ? "it" : "each one") + " before it landed."
+      : "You followed every prompt. Run it again and try a wrong move &mdash; the system is built to stop it.";
+
+    $("finish-body").innerHTML =
+      '<p class="eyebrow">Simulation complete &#183; ' + fmt(S.clock) + '</p>' +
+      '<h2 id="finish-h" tabindex="-1">One order, gate to gate &mdash; every step on the system.</h2>' +
+      (name ? '<p class="ov-p">Thanks, ' + name + '. Our Kenya team has your assessment request and will be in touch within one working day.</p>' : "") +
+      '<ul class="results">' +
+        '<li><b>' + S.scans + ' scans</b>No paper forms, no re-keying</li>' +
+        '<li><b>2 ctn short</b>Caught at the dock, claim raised</li>' +
+        '<li><b>FEFO</b>Oldest batch shipped first</li>' +
+        '<li><b>' + turn + ' min</b>Inbound turnaround, timed from the gate</li>' +
+        '<li><b>3 of 3</b>SAP postings, none failed</li>' +
+        '<li class="hl"><b>' + S.caught + ' stopped</b>Wrong moves the system refused</li>' +
+      '</ul>' +
+      '<p class="ov-p">' + caughtLine + '</p>' +
+      '<div class="look"><h3>What we would look at on your floor</h3><ul>' +
+        '<li>How long trucks wait between the gate and a dock, and why.</li>' +
+        '<li>How often receipts match the ASN, and where variances get absorbed.</li>' +
+        '<li>Whether locations and expiry rules are followed, or remembered.</li>' +
+      '</ul></div>' +
+      '<div class="ov-actions"><button class="btn btn-primary" type="button" id="again">Run it again</button>' +
+      '<a class="btn btn-ghost" href="' + LANDING_URL + '">Back to the site</a></div>';
+
+    $("again").addEventListener("click", restart);
+    showOverlay("finish");
+  }
+
+  /* ---------------- lifecycle ---------------- */
+  function reset() {
+    gen++;
+    S = fresh();
+    screenEl.classList.remove("is-busy");
+    $("log").innerHTML = "";
+    buildMap();
+    seedLog();
+  }
+
+  function restart() {
+    reset();
+    showOverlay(null);
+    enterStage(0);
+  }
+
+  screenEl.addEventListener("click", function (event) {
+    var b = event.target.closest("[data-act]");
+    if (!b || b.disabled || S.busy) return;
+    var action = ACTIONS[b.getAttribute("data-act")];
+    if (action) action(b.getAttribute("data-arg"), b);
+  });
+
+  $("restart").addEventListener("click", restart);
+  $("start").addEventListener("click", function () {
+    showOverlay(null);
+    enterStage(0);
+  });
+
+  var access = readAccess();
+  if (access && access.firstName) $("intro-hi").textContent = "Welcome, " + access.firstName;
+
+  reset();
+  render();
+  showOverlay(REQUIRE_FORM && !access ? "gate" : "intro");
+})();
+</script>
+</body>
+</html>
